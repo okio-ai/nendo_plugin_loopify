@@ -1,0 +1,5 @@
+site_name: Loopify
+
+nav:
+    - "index.md"
+    - Advanced Usage: "advanced.md"

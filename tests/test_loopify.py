@@ -29,6 +29,15 @@ class TestLoopifier(unittest.TestCase):
         self.assertEqual(len(nd.library.get_tracks()), 5)
         self.assertEqual(len(loops), 4)
 
+    def test_run_loopify_plugin_mono(self):
+        nd.library.reset(force=True)
+        track = nd.library.add_track(file_path="tests/assets/test_mono.mp3")
+        loops = nd.plugins.loopify(track=track)
+
+        # default 4 loops + 1 original
+        self.assertEqual(len(nd.library.get_tracks()), 5)
+        self.assertEqual(len(loops), 4)
+
     def test_run_process_loopify_plugin(self):
         nd.library.reset(force=True)
         track = nd.library.add_track(file_path="tests/assets/test.mp3")

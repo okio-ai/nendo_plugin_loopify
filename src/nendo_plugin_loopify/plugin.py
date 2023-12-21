@@ -71,7 +71,7 @@ class Loopifier(NendoGeneratePlugin):
         self.logger.debug(f"Loaded track with shape {y.shape} and sample rate {sr}.")
 
         # only process mono signal
-        beatmap = self.beatnet.process(y[0])
+        beatmap = self.beatnet.process(y[0] if len(y.shape) > 1 else y)
         beats = (beatmap[:, 0] * sr).astype(int)
 
         if len(beats) == 0:

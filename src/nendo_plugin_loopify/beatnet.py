@@ -54,7 +54,9 @@ class NendoBeatNet:
         )
         self.model.eval()
 
-    def process(self, audio_path: Optional[Union[str, np.ndarray]] = None) -> np.ndarray:
+    def process(
+        self, audio_path: Optional[Union[str, np.ndarray]] = None
+    ) -> np.ndarray:
         """Process the given audio file or object and return the beat times and downbeat identifier columns."""
         if isinstance(audio_path, str) or audio_path.all() is not None:
             preds = self._activation_extractor_online(audio_path)
@@ -77,6 +79,7 @@ class NendoBeatNet:
 
 class LogSpec:
     """LogSpec class adapted from the original implementation."""
+
     def __init__(
         self,
         num_channels: int = 1,
@@ -134,8 +137,13 @@ def num_flat_features(x: torch.Tensor) -> int:
 
 class BeatDownBeatActivation(nn.Module):
     """Beat Downbeat Activation model."""
+
     def __init__(
-        self, dim_in: int, num_cells: int, num_layers: int, device: torch.device,
+        self,
+        dim_in: int,
+        num_cells: int,
+        num_layers: int,
+        device: torch.device,
     ):
         """Initialize the BeatDownBeatActivation model."""
         super(BeatDownBeatActivation, self).__init__()

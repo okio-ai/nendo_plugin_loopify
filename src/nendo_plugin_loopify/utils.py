@@ -23,7 +23,8 @@ class LoopMetaData:
 
 
 def choose_final_loops(
-    loop_candidates: List[LoopMetaData], num_loops: int,
+    loop_candidates: List[LoopMetaData],
+    num_loops: int,
 ) -> List[LoopMetaData]:
     """Chooses the final loops to be used.
 
@@ -70,7 +71,10 @@ def _calc_spectrogram(loop: np.ndarray) -> torch.Tensor:
     """
     return torch.abs(
         torch.stft(
-            torch.from_numpy(loop), n_fft=2048, return_complex=True, pad_mode="constant",
+            torch.from_numpy(loop),
+            n_fft=2048,
+            return_complex=True,
+            pad_mode="constant",
         ),
     )
 
@@ -84,7 +88,7 @@ def _is_not_silence(S: torch.Tensor, loudness_threshold: float = 0.01) -> bool:
     Returns:
         bool: True if the track is not silence, False otherwise.
     """
-    rms = torch.sqrt(torch.mean(S ** 2, dim=0))
+    rms = torch.sqrt(torch.mean(S**2, dim=0))
     return torch.max(rms) > loudness_threshold
 
 

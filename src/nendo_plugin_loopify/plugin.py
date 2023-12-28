@@ -50,10 +50,10 @@ class Loopifier(NendoGeneratePlugin):
 
     @NendoGeneratePlugin.run_track
     def loopify_track(
-            self,
-            track: NendoTrack,
-            n_loops: Optional[int] = 4,
-            beats_per_loop: Optional[int] = 8,
+        self,
+        track: NendoTrack,
+        n_loops: Optional[int] = 4,
+        beats_per_loop: Optional[int] = 8,
     ) -> List[NendoTrack]:
         """Run the BeatNet loopifier on the given track.
 
@@ -69,18 +69,26 @@ class Loopifier(NendoGeneratePlugin):
 
         y, sr = track.signal, track.sr
         self.logger.debug(f"Loaded track with shape {y.shape} and sample rate {sr}.")
+        if sr != self.beatnet.sample_rate * 2:
+            self.logger.debug(
+                f"Resampling track from {sr} to {self.beatnet.sample_rate * 2}."
+            )
+            y = track.resample(self.beatnet.sample_rate * 2)
+            sr = self.beatnet.sample_rate * 2
 
         # only process mono signal
         beatmap = self.beatnet.process(y[0] if len(y.shape) > 1 else y)
         beats = (beatmap[:, 0] * sr).astype(int)
 
         if len(beats) == 0:
-            self.logger.warning("No beats detected in track.")
+            self.logger.debug("No beats detected in track.")
 
         loop_candidates = get_loop_candidates(y, beats, beats_per_loop)
 
         if len(loop_candidates) == 0:
-            self.logger.warning("No loops found in track.")
+            self.logger.warning(
+                "No loops found in track. Try to reduce the number of beats per loop."
+            )
 
         self.logger.debug(f"Found {len(loop_candidates)} loop candidates.")
 
@@ -89,16 +97,18 @@ class Loopifier(NendoGeneratePlugin):
 
         for i, loop in enumerate(final_loops):
             loop_buffer = (
-                y[:, loop.start_sample: loop.end_sample]
+                y[:, loop.start_sample : loop.end_sample]
                 if len(y.shape) > 1
-                else y[loop.start_sample: loop.end_sample]
+                else y[loop.start_sample : loop.end_sample]
             )
             self.logger.debug(f"Loop buffer shape: {loop_buffer.shape}")
 
             if "original_filename" not in track.resource.meta:
                 track_title = f"Loop {i + 1}"
             else:
-                track_title = f"{track.resource.meta['original_filename']} - Loop {i + 1}"
+                track_title = (
+                    f"{track.resource.meta['original_filename']} - Loop {i + 1}"
+                )
             loops.append(
                 self.nendo_instance.library.add_related_track_from_signal(
                     signal=loop_buffer,

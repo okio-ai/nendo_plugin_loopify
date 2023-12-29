@@ -23,7 +23,8 @@ class LoopMetaData:
 
 
 def choose_final_loops(
-    loop_candidates: List[LoopMetaData], num_loops: int,
+    loop_candidates: List[LoopMetaData],
+    num_loops: int,
 ) -> List[LoopMetaData]:
     """Chooses the final loops to be used.
 
@@ -41,27 +42,54 @@ def choose_final_loops(
     return loop_candidates[:num_loops]
 
 
-def _calc_spectral_sim(loop: np.ndarray, window: int = 1) -> float:
+def _calc_spectral_sim(spec: torch.Tensor, window: int = 1) -> float:
     """Calculates a given loops quality based on Spectral continuity between the first and last window of the loop.
 
     Args:
-        loop (numpy.ndarray): The loop to calculate the spectral similarity for.
+        spec (torch.Tensor): The spectrogram of the loop.
         window (int, optional): The window size for the spectral similarity calculation. Defaults to 1.
 
     Returns:
         float: The spectral similarity of the loop.
     """
-    spec = torch.abs(
-        torch.stft(
-            torch.from_numpy(loop), n_fft=2048, return_complex=True, pad_mode="constant",
-        ),
-    )
     frame_start = spec[:, :window].flatten()
     frame_end = spec[:, -window:].flatten()
     frame_start_norm = frame_start / torch.linalg.norm(frame_start)
     frame_end_norm = frame_end / torch.linalg.norm(frame_end)
     spectral_sim = torch.dot(frame_start_norm, frame_end_norm)
     return spectral_sim.item()
+
+
+def _calc_spectrogram(loop: np.ndarray) -> torch.Tensor:
+    """Calculates the spectrogram of a given loop.
+
+    Args:
+        loop (numpy.ndarray): The loop to calculate the spectrogram for.
+
+    Returns:
+        torch.Tensor: The spectrogram of the loop.
+    """
+    return torch.abs(
+        torch.stft(
+            torch.from_numpy(loop),
+            n_fft=2048,
+            return_complex=True,
+            pad_mode="constant",
+        ),
+    )
+
+
+def _is_not_silence(S: torch.Tensor, loudness_threshold: float = 0.01) -> bool:
+    """Checks if the given track is not silence using RMS.
+
+    Args:
+        S (torch.Tensor): The spectrogram of the track.
+
+    Returns:
+        bool: True if the track is not silence, False otherwise.
+    """
+    rms = torch.sqrt(torch.mean(S**2, dim=0))
+    return torch.max(rms) > loudness_threshold
 
 
 def get_loop_candidates(
@@ -85,8 +113,9 @@ def get_loop_candidates(
         start = beats[i]
         end = beats[i + beats_per_loop]
         loop = y[:, start:end] if len(y.shape) > 1 else y[start:end]
-        spectral_sim = _calc_spectral_sim(loop)
-        if not math.isnan(spectral_sim):
+        S = _calc_spectrogram(loop)
+        spectral_sim = _calc_spectral_sim(S)
+        if _is_not_silence(S):
             loop_candidates.append(
                 LoopMetaData(
                     start_sample=start,

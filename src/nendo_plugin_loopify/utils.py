@@ -79,23 +79,18 @@ def _calc_spectrogram(loop: np.ndarray) -> torch.Tensor:
     )
 
 
-def _is_not_silence(S: torch.Tensor, loudness_threshold: float = 0.01) -> bool:
-    """Checks if the given track is not silence using RMS.
-
-    Args:
-        S (torch.Tensor): The spectrogram of the track.
-
-    Returns:
-        bool: True if the track is not silence, False otherwise.
-    """
+def _mean_rms(S: torch.Tensor) -> torch.Tensor:
+    """Calculates the mean RMS of a given spectrogram."""
     rms = torch.sqrt(torch.mean(S**2, dim=0))
-    return torch.max(rms) > loudness_threshold
+    return torch.mean(rms)
 
 
 def get_loop_candidates(
     y: np.ndarray,
     beats: np.ndarray,
     beats_per_loop: int,
+    dynamic_threshold_factor: float = 0.5,
+    silence_threshold: float = 0.005,
 ) -> List[LoopMetaData]:
     """Generate potential loops from a given track.
 
@@ -103,19 +98,25 @@ def get_loop_candidates(
         y (numpy.ndarray): The track data.
         beats (numpy.ndarray): The beatmap of the track.
         beats_per_loop (int): The number of beats per loop.
+        dynamic_threshold_factor (float, optional): The factor to multiply the dynamic threshold by. Defaults to 0.5.
+        silence_threshold (float, optional): The threshold to consider a loop silent. Defaults to 0.005.
 
     Returns:
         list[LoopMetaData]: The potential loops generated.
     """
     beat_intervals = np.diff(beats)
     loop_candidates = []
+    spec_total = _calc_spectrogram(y)
+    rms_total = _mean_rms(spec_total)
+    dynamic_threshold = rms_total * dynamic_threshold_factor
     for i in range(len(beat_intervals) - beats_per_loop):
         start = beats[i]
         end = beats[i + beats_per_loop]
         loop = y[:, start:end] if len(y.shape) > 1 else y[start:end]
-        S = _calc_spectrogram(loop)
-        spectral_sim = _calc_spectral_sim(S)
-        if _is_not_silence(S):
+        spec_loop = _calc_spectrogram(loop)
+        spectral_sim = _calc_spectral_sim(spec_loop)
+        rms_loop = _mean_rms(spec_loop)
+        if rms_loop > max(dynamic_threshold, silence_threshold):
             loop_candidates.append(
                 LoopMetaData(
                     start_sample=start,

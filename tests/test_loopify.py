@@ -1,6 +1,7 @@
 import unittest
 
 import numpy as np
+import torch
 from nendo import Nendo, NendoConfig
 
 from nendo_plugin_loopify.utils import (
@@ -55,7 +56,7 @@ class TestUtils(unittest.TestCase):
         beats_per_loop = 2
 
         result = get_loop_candidates(y, beats, beats_per_loop)
-        self.assertEqual(len(result), 7)
+        self.assertEqual(len(result), 1)
         self.assertTrue(all(isinstance(loop, LoopMetaData) for loop in result))
 
     def test_get_loop_candidates_5_beats(self):
@@ -64,7 +65,7 @@ class TestUtils(unittest.TestCase):
         beats_per_loop = 5
 
         result = get_loop_candidates(y, beats, beats_per_loop)
-        self.assertEqual(len(result), 4)
+        self.assertEqual(len(result), 2)
 
     def test_get_loop_candidates_20_beats_large_array(self):
         y = np.array(range(50)).astype(np.float32)
@@ -72,7 +73,7 @@ class TestUtils(unittest.TestCase):
         beats_per_loop = 20
 
         result = get_loop_candidates(y, beats, beats_per_loop)
-        self.assertEqual(len(result), 29)
+        self.assertEqual(len(result), 16)
 
     def test_get_loop_candidates_0_beats(self):
         y = np.array(range(50)).astype(np.float32)
@@ -83,21 +84,21 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(len(result), 0)
 
     def test_calc_spectral_sim(self):
-        loop = np.array([1, 2, 3, 4, 1]).astype(np.float32)
+        loop = torch.Tensor([[1, 2, 3, 4, 1], [1, 2, 3, 4, 1]])
         window = 1
 
         result = _calc_spectral_sim(loop, window)
         self.assertEqual(np.round(result, 1), 1.0)
 
     def test_calc_spectral_sim_large_array(self):
-        loop = np.array(range(50)).astype(np.float32)
-        window = 1
+        loop = torch.Tensor([range(50), range(50)])
+        window = 2
 
         result = _calc_spectral_sim(loop, window)
         self.assertEqual(np.round(result), 1.0)
 
     def test_calc_spectral_sim_large_array_large_window(self):
-        loop = np.array(range(50)).astype(np.float32)
+        loop = torch.Tensor([range(50), range(50)])
         window = 20
 
         result = _calc_spectral_sim(loop, window)

@@ -134,9 +134,10 @@ dmypy.json
 # vscode
 .vscode/
 
-
 .idea
 /samples
 /examples
 /library
 nendo_library/
+
+poetry.lock

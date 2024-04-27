@@ -10,7 +10,7 @@ from nendo import (
 )
 
 from .beatnet import NendoBeatNet
-from .utils import choose_final_loops, get_loop_candidates
+from .utils import choose_final_loops, get_loop_candidates, QualityScore
 
 
 class Loopifier(NendoGeneratePlugin):
@@ -54,6 +54,7 @@ class Loopifier(NendoGeneratePlugin):
         track: NendoTrack,
         n_loops: Optional[int] = 4,
         beats_per_loop: Optional[int] = 8,
+        loop_score: QualityScore = QualityScore.SPECTRAL_DISTANCE,
     ) -> List[NendoTrack]:
         """Run the BeatNet loopifier on the given track.
 
@@ -61,6 +62,9 @@ class Loopifier(NendoGeneratePlugin):
             track (NendoTrack): The track to loopify.
             n_loops (int, optional): The number of loops to generate.
             beats_per_loop (int, optional): The number of beats per loop.
+            loop_score (QualityScore): The quality score used when selecting the loops.
+                Defaults to the combination of normalized spectral similarity
+                and distance score.
 
         Returns:
             List[NendoTrack]: The generated loops.
@@ -92,7 +96,7 @@ class Loopifier(NendoGeneratePlugin):
 
         self.logger.debug(f"Found {len(loop_candidates)} loop candidates.")
 
-        final_loops = choose_final_loops(loop_candidates, n_loops)
+        final_loops = choose_final_loops(loop_candidates, n_loops, loop_score)
         self.logger.debug(f"Found final loops:\n{final_loops}")
 
         for i, loop in enumerate(final_loops):

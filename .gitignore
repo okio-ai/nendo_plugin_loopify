@@ -138,6 +138,7 @@ dmypy.json
 /samples
 /examples
 /library
+tests/library
 nendo_library/
 
 poetry.lock

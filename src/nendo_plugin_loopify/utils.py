@@ -2,6 +2,8 @@
 import dataclasses
 import math
 from typing import List
+from enum import Enum
+from nendo import NendoPluginRuntimeError
 
 import numpy as np
 import torch
@@ -21,10 +23,23 @@ class LoopMetaData:
     end_sample: int
     spectral_similarity: float
 
+class QualityScore(Enum):
+    """Quality score used for loop selection."""
+    SPECTRAL = "spectral"
+    SPECTRAL_DISTANCE = "spectral_distance"
+
+def normalize_scores(scores: List[float]) -> List[float]:
+    """Normalizes a list of scores to a 0-1 range."""
+    min_score = min(scores)
+    max_score = max(scores)
+    if max_score == min_score:
+        return [0.5 for _ in scores]  # Avoid division by zero if all scores are the same
+    return [(score - min_score) / (max_score - min_score) for score in scores]
 
 def choose_final_loops(
     loop_candidates: List[LoopMetaData],
     num_loops: int,
+    score: QualityScore = QualityScore.SPECTRAL_DISTANCE,
 ) -> List[LoopMetaData]:
     """Chooses the final loops to be used.
 
@@ -34,12 +49,55 @@ def choose_final_loops(
     Args:
         loop_candidates (list[LoopMetaData]): The candidate loops to choose from.
         num_loops (int): The number of loops to choose.
+        score (QualityScore): The quality score used when selecting the loops.
+            Defaults to the combination of normalized spectral similarity
+            and distance score.
 
     Returns:
         list[LoopMetaData]: The chosen loops.
     """
-    loop_candidates.sort(key=lambda x: x.spectral_similarity, reverse=True)
-    return loop_candidates[:num_loops]
+    if score == QualityScore.SPECTRAL:
+        print("DOING SPECTRAL")
+        loop_candidates.sort(key=lambda x: x.spectral_similarity, reverse=True)
+        return loop_candidates[:num_loops]
+    elif score == QualityScore.SPECTRAL_DISTANCE:
+        # Sort candidates by spectral similarity for initial selection potential
+        loop_candidates.sort(key=lambda x: x.spectral_similarity, reverse=True)
+
+        # Initialize the selection with the loop having the highest similarity
+        selected_loops = [loop_candidates[0]]
+
+        while len(selected_loops) < num_loops and len(selected_loops) < len(loop_candidates):
+            best_score = float('-inf')
+            best_candidate = None
+
+            diversity_scores = [
+                min(
+                    np.abs(candidate.start_sample - selected.start_sample) + np.abs(candidate.end_sample - selected.end_sample)
+                    for selected in selected_loops
+                ) for candidate in loop_candidates if candidate not in selected_loops
+            ]
+
+            # Normalize both spectral similarity and diversity scores
+            if diversity_scores:
+                normalized_diversity_scores = normalize_scores(diversity_scores)
+                normalized_similarity_scores = normalize_scores([c.spectral_similarity for c in loop_candidates if c not in selected_loops])
+
+                # Iterate over candidates not already selected
+                for i, candidate in enumerate([c for c in loop_candidates if c not in selected_loops]):
+                    # Combine normalized scores with equal weighting
+                    combined_score = 0.5 * normalized_similarity_scores[i] + 0.5 * normalized_diversity_scores[i]
+
+                    if combined_score > best_score:
+                        best_score = combined_score
+                        best_candidate = candidate
+
+            if best_candidate:
+                selected_loops.append(best_candidate)
+
+        return selected_loops
+    else:
+        raise NendoPluginRuntimeError("Loop selection score unknown")
 
 
 def _calc_spectral_sim(spec: torch.Tensor, window: int = 1) -> float:
